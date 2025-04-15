@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "943561423334",
+    "project_id": "bisniskubisnismu-1717",
+    "storage_bucket": "bisniskubisnismu-1717.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:943561423334:android:3d24125d24c672ae6ffe27",
+        "android_client_info": {
+          "package_name": "com.example.bisniskubisnismu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfTMxsCzIf04S-Br-nVy2dUCIg_5Lol5g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
