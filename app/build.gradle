@@ -43,7 +43,7 @@ dependencies {
     implementation 'org.tensorflow:tensorflow-lite:2.13.0'
     implementation 'com.google.firebase:firebase-database:20.3.0'
     apply plugin: 'com.google.gms.google-services'
-
+    implementation 'com.google.firebase:firebase-firestore:24.9.0'
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity

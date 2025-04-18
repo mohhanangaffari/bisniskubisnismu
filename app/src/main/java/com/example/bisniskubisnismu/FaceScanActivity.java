@@ -1,29 +1,21 @@
 package com.example.bisniskubisnismu;
 
-import static java.lang.System.out;
-
-import android.Manifest;
 import android.graphics.Matrix;
 import android.os.Bundle;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.view.PreviewView;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.media.Image;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.*;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.core.app.ActivityCompat;
@@ -34,7 +26,6 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.firebase.Firebase;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
@@ -54,11 +45,10 @@ import java.util.concurrent.Executors;
 import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.YuvImage;
-import android.graphics.Rect;
-import android.graphics.Canvas;
+import com.google.firebase.firestore.FirebaseFirestore;
 import java.io.ByteArrayOutputStream;
 
-@ExperimentalGetImage public class LoginActivity extends AppCompatActivity {
+@ExperimentalGetImage public class FaceScanActivity extends AppCompatActivity {
     private PreviewView previewview;
     private Button loginButton;
     private ProcessCameraProvider cameraProvider;
@@ -68,23 +58,27 @@ import java.io.ByteArrayOutputStream;
     private static final String TAG = "LoginActivity";
     DatabaseReference myRef;
     FirebaseDatabase database;
+    private String[] credentialregister;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_login);
+        setContentView(R.layout.activity_facescan);
         previewview = findViewById(R.id.previewView);
         loginButton = findViewById(R.id.loginbutton);
         cameraExecutor = Executors.newSingleThreadExecutor();
+        credentialregister = getIntent().getStringArrayExtra("credentialregister");
 
         loginButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if(izindiberikan()){
                     startCam();
+
                 }else{
-                    ActivityCompat.requestPermissions(LoginActivity.this,new  String[]{android.Manifest.permission.CAMERA},camerapermissionrequest);
+                    ActivityCompat.requestPermissions(FaceScanActivity.this,new  String[]{android.Manifest.permission.CAMERA},camerapermissionrequest);
                 }
             }
         });
@@ -144,13 +138,16 @@ import java.io.ByteArrayOutputStream;
                                 try {
                                     FaceEmbedding faceEmbedding = new FaceEmbedding(getApplicationContext());
                                     float [] embedding = faceEmbedding.getFaceEmbedding(facebit);
-//                                    registerUser("alice",embedding);
-                                    matchfacedata(embedding);
+                                    if (credentialregister!=null){
+                                        registerUser(credentialregister[0],credentialregister[1],credentialregister[2],embedding);
+                                    }else{
+                                        matchfacedata(embedding);
+                                    }
+
+
                                     Log.d(TAG,"embedding size:"+embedding.length);
                                     Log.d(TAG,"embedding bit value:"+ Arrays.toString(embedding));
-                                    runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Face detected", Toast.LENGTH_SHORT).show());
-
-                                    Toast.makeText(LoginActivity.this, "berhasil", Toast.LENGTH_SHORT).show();
+                                    runOnUiThread(() -> Toast.makeText(FaceScanActivity.this, "Face detected", Toast.LENGTH_SHORT).show());
                                 }catch (IOException e){
                                     Log.e(TAG,"TFLIte model error",e);
                                 }
@@ -214,26 +211,28 @@ import java.io.ByteArrayOutputStream;
        }
     }
 
-    private void registerUser(String name,float [] embedding){
+    private void registerUser(String email,String name,String password,float [] embedding){
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
         DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("users");
         Map<String,Object> userData = new HashMap<>();
-        userData.put("name",name);
-
         List<Float> embeddingList = new ArrayList<>();
         for(float val:embedding) embeddingList.add(val);
+        userData.put("email",email);
+        userData.put("name",name);
+        userData.put("password",password);
         userData.put("embedding",embeddingList);
-
-        databaseReference.child(name).setValue(embeddingList).addOnSuccessListener(new OnSuccessListener<Void>() {
-            @Override
-            public void onSuccess(Void unused) {
-                Toast.makeText(LoginActivity.this, "user registered", Toast.LENGTH_SHORT).show();
-            }
-        }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(Exception e) {
-                Toast.makeText(LoginActivity.this, "error"+e, Toast.LENGTH_SHORT).show();
-            }
-        });
+        db.collection("users").document(email).set(userData);
+//        databaseReference.child(name).setValue(embeddingList).addOnSuccessListener(new OnSuccessListener<Void>() {
+//            @Override
+//            public void onSuccess(Void unused) {
+//                Toast.makeText(FaceScanActivity.this, "user registered", Toast.LENGTH_SHORT).show();
+//            }
+//        }).addOnFailureListener(new OnFailureListener() {
+//            @Override
+//            public void onFailure(Exception e) {
+//                Toast.makeText(FaceScanActivity.this, "error"+e, Toast.LENGTH_SHORT).show();
+//            }
+//        });
     }
 
     @Override
@@ -269,27 +268,32 @@ import java.io.ByteArrayOutputStream;
             public void onComplete(@NonNull Task<DataSnapshot> task) {
                 if (task.isSuccessful()){
                     DataSnapshot dataSnapshot = task.getResult();
+                    Toast.makeText(FaceScanActivity.this, "datasnapshot :"+dataSnapshot, Toast.LENGTH_SHORT).show();
                     String matchface = null;
                     float maxsimilarity = -1f;
                     for(DataSnapshot userSnapshot:dataSnapshot.getChildren()){
+                        Log.d(TAG,"userSnapshot : "+userSnapshot);
                         List<Double> doubleList = (List<Double>) userSnapshot.getValue();
+                        Log.d(TAG,"doubleList : "+doubleList);
                         float[] storedfacedata = new float[doubleList.size()];
                         for(int i=0;i<doubleList.size();i++){
                             storedfacedata[i] = doubleList.get(i).floatValue();
+
                         }
                         float similarity = checkface(currentfacedata,storedfacedata);
+                        Log.d(TAG,"similarity : "+similarity);
                         if(similarity>maxsimilarity){
                             maxsimilarity = similarity;
-                            matchface = userSnapshot.getValue(String.class);
+                            matchface = userSnapshot.getKey().toString();
                         }
                     }
-                    if (maxsimilarity > 0.85f){
-                        Toast.makeText(LoginActivity.this, "Welcome"+matchface, Toast.LENGTH_SHORT).show();
+                    if (maxsimilarity > 0.55f){
+                        Toast.makeText(FaceScanActivity.this, "Welcome"+matchface, Toast.LENGTH_SHORT).show();
                     }else{
-                        Toast.makeText(LoginActivity.this, "face not registered", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(FaceScanActivity.this, "face not registered", Toast.LENGTH_SHORT).show();
                     }
                 }else{
-                    Toast.makeText(LoginActivity.this, "error"+task.getException(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(FaceScanActivity.this, "error"+task.getException(), Toast.LENGTH_SHORT).show();
                 }
             }
         });
