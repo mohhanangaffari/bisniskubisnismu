@@ -3,6 +3,7 @@ package com.example.bisniskubisnismu;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Rect;
@@ -10,43 +11,52 @@ import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.*;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.Preview;
+import androidx.camera.core.ExperimentalGetImage;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.face.*;
+import com.google.mlkit.vision.face.Face;
+import com.google.mlkit.vision.face.FaceDetection;
+import com.google.mlkit.vision.face.FaceDetector;
+import com.google.mlkit.vision.face.FaceDetectorOptions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @ExperimentalGetImage
 public class FaceScanActivity extends AppCompatActivity {
-    private static final int camerapermissionrequest = 1001;
+    private static final int CAM_PERMISSION_REQUEST = 1001;
     private static final String TAG = "FaceScanActivity";
 
-    private PreviewView previewview;
+    private PreviewView previewView;
     private Button loginButton;
     private ProcessCameraProvider cameraProvider;
     private ExecutorService cameraExecutor;
     private boolean faceDetectedOnce = false;
 
-    private String[] credentialregister;
+    private String email, name, password;
+    private FirebaseFirestore firestore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,84 +64,105 @@ public class FaceScanActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_facescan);
 
-        previewview = findViewById(R.id.previewView);
-        loginButton = findViewById(R.id.loginbutton);
+        previewView    = findViewById(R.id.previewView);
+        loginButton    = findViewById(R.id.loginbutton);
         cameraExecutor = Executors.newSingleThreadExecutor();
+        firestore      = FirebaseFirestore.getInstance();
 
-        credentialregister = getIntent().getStringArrayExtra("credentialregister");
+        // Ambil data dari Intent sebelumnya
+        String[] creds = getIntent().getStringArrayExtra("credentialregister");
+        if (creds != null && creds.length >= 3) {
+            email    = creds[0];
+            name     = creds[1];
+            password = creds[2];
+        } else {
+            Toast.makeText(this, "Data register tidak lengkap", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
 
         loginButton.setOnClickListener(v -> {
-            if (izindiberikan()) {
+            if (checkCameraPermission()) {
                 startCam();
-                Toast.makeText(FaceScanActivity.this, "Scanning face...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Scanning face...", Toast.LENGTH_SHORT).show();
             } else {
-                ActivityCompat.requestPermissions(FaceScanActivity.this, new String[]{android.Manifest.permission.CAMERA}, camerapermissionrequest);
+                ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{android.Manifest.permission.CAMERA},
+                        CAM_PERMISSION_REQUEST
+                );
             }
         });
     }
 
-    private boolean izindiberikan() {
-        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    private boolean checkCameraPermission() {
+        return ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED;
     }
 
     private void startCam() {
-        ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
+        ListenableFuture<ProcessCameraProvider> cameraProviderFuture =
+                ProcessCameraProvider.getInstance(this);
 
         cameraProviderFuture.addListener(() -> {
             try {
                 cameraProvider = cameraProviderFuture.get();
-                analyzer();
+                setupAnalyzer();
             } catch (Exception e) {
                 Log.e(TAG, "Camera provider error", e);
             }
         }, ContextCompat.getMainExecutor(this));
     }
 
-    private void analyzer() {
+    private void setupAnalyzer() {
         cameraProvider.unbindAll();
 
         Preview preview = new Preview.Builder().build();
-        preview.setSurfaceProvider(previewview.getSurfaceProvider());
+        preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
-        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+        ImageAnalysis analysis = new ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build();
 
-        imageAnalysis.setAnalyzer(cameraExecutor, imageProxy -> {
+        analysis.setAnalyzer(cameraExecutor, imageProxy -> {
             if (faceDetectedOnce) {
                 imageProxy.close();
                 return;
             }
 
-            Image mediaimg = imageProxy.getImage();
-            if (mediaimg != null) {
-                InputImage image = InputImage.fromMediaImage(mediaimg, imageProxy.getImageInfo().getRotationDegrees());
-                FaceDetectorOptions options = new FaceDetectorOptions.Builder().setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE).build();
+            Image mediaImage = imageProxy.getImage();
+            if (mediaImage != null) {
+                InputImage image = InputImage.fromMediaImage(
+                        mediaImage,
+                        imageProxy.getImageInfo().getRotationDegrees()
+                );
+                FaceDetectorOptions options = new FaceDetectorOptions.Builder()
+                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+                        .build();
                 FaceDetector detector = FaceDetection.getClient(options);
 
                 detector.process(image)
                         .addOnSuccessListener(faces -> {
                             if (!faces.isEmpty()) {
-                                Face face = faces.get(0);
                                 faceDetectedOnce = true;
-                                Bitmap facebit = cropFaceFromImage(mediaimg, face.getBoundingBox(), imageProxy.getImageInfo().getRotationDegrees());
-
-                                if (facebit != null) {
+                                Face face = faces.get(0);
+                                Bitmap faceBmp = cropFace(mediaImage, face.getBoundingBox(),
+                                        imageProxy.getImageInfo().getRotationDegrees());
+                                if (faceBmp != null) {
                                     try {
-                                        FaceEmbedding faceEmbedding = new FaceEmbedding(getApplicationContext());
-                                        float[] embedding = faceEmbedding.getFaceEmbedding(facebit);
+                                        FaceEmbedding faceEmbedding =
+                                                new FaceEmbedding(getApplicationContext());
+                                        float[] embedding =
+                                                faceEmbedding.getFaceEmbedding(faceBmp);
 
-                                        Intent intent = new Intent(FaceScanActivity.this, FingerPrintActivity.class);
-                                        intent.putExtra("email", credentialregister[0]);
-                                        intent.putExtra("name", credentialregister[1]);
-                                        intent.putExtra("password", credentialregister[2]);
-                                        intent.putExtra("embedding", embedding);
-                                        startActivity(intent);
-                                        finish();
+                                        // Upload ke Firestore
+                                        uploadToFirestore(embedding);
 
                                     } catch (IOException e) {
-                                        Log.e(TAG, "Face embedding error", e);
+                                        Log.e(TAG, "Embedding error", e);
                                     }
-                                } else {
-                                    Log.e(TAG, "Null face bitmap");
                                 }
                             }
                         })
@@ -141,48 +172,91 @@ public class FaceScanActivity extends AppCompatActivity {
             }
         });
 
-        CameraSelector cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA;
-        cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis);
+        CameraSelector selector = CameraSelector.DEFAULT_FRONT_CAMERA;
+        cameraProvider.bindToLifecycle(this, selector, preview, analysis);
     }
 
-    private Bitmap cropFaceFromImage(Image mediaimg, Rect boundingbox, int rotationDegrees) {
+    private Bitmap cropFace(Image mediaImage, Rect box, int rotation) {
         try {
-            ByteBuffer yBuffer = mediaimg.getPlanes()[0].getBuffer();
-            ByteBuffer uBuffer = mediaimg.getPlanes()[1].getBuffer();
-            ByteBuffer vBuffer = mediaimg.getPlanes()[2].getBuffer();
+            ByteBuffer y = mediaImage.getPlanes()[0].getBuffer();
+            ByteBuffer u = mediaImage.getPlanes()[1].getBuffer();
+            ByteBuffer v = mediaImage.getPlanes()[2].getBuffer();
 
-            int ySize = yBuffer.remaining();
-            int uSize = uBuffer.remaining();
-            int vSize = vBuffer.remaining();
+            byte[] nv21 = new byte[y.remaining() + u.remaining() + v.remaining()];
+            y.get(nv21, 0, y.remaining());
+            v.get(nv21, y.remaining(), v.remaining());
+            u.get(nv21, y.remaining() + v.remaining(), u.remaining());
 
-            byte[] nv21 = new byte[ySize + uSize + vSize];
-            yBuffer.get(nv21, 0, ySize);
-            vBuffer.get(nv21, ySize, vSize);
-            uBuffer.get(nv21, ySize + vSize, uSize);
+            int w = mediaImage.getWidth(), h = mediaImage.getHeight();
+            YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, w, h, null);
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            yuv.compressToJpeg(new Rect(0, 0, w, h), 100, os);
+            Bitmap full = BitmapFactory.decodeByteArray(os.toByteArray(), 0, os.size());
+            Matrix m = new Matrix();
+            m.postRotate(rotation);
+            Bitmap rotated = Bitmap.createBitmap(full, 0, 0,
+                    full.getWidth(), full.getHeight(), m, true);
 
-            int width = mediaimg.getWidth();
-            int height = mediaimg.getHeight();
+            int left   = Math.max(0, box.left);
+            int top    = Math.max(0, box.top);
+            int width  = Math.min(box.width(), rotated.getWidth() - left);
+            int height = Math.min(box.height(), rotated.getHeight() - top);
+            return Bitmap.createBitmap(rotated, left, top, width, height);
 
-            YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, outputStream);
-            byte[] jpegbyte = outputStream.toByteArray();
-
-            Bitmap fullbit = android.graphics.BitmapFactory.decodeByteArray(jpegbyte, 0, jpegbyte.length);
-            Matrix matrix = new Matrix();
-            matrix.postRotate(rotationDegrees);
-            fullbit = Bitmap.createBitmap(fullbit, 0, 0, fullbit.getWidth(), fullbit.getHeight(), matrix, true);
-
-            Rect faceRect = boundingbox;
-            int left = Math.max(0, faceRect.left);
-            int top = Math.max(0, faceRect.top);
-            int widthCrop = Math.min(faceRect.width(), fullbit.getWidth() - left);
-            int heightCrop = Math.min(faceRect.height(), fullbit.getHeight() - top);
-
-            return Bitmap.createBitmap(fullbit, left, top, widthCrop, heightCrop);
         } catch (Exception e) {
-            Log.e(TAG, "Error cropping: " + e.getMessage());
+            Log.e(TAG, "Crop error", e);
             return null;
         }
+    }
+
+    private void uploadToFirestore(float[] embedding) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("email", email);
+        data.put("name", name);
+        data.put("password", password);
+
+        // Konversi float[] ke List<Float>
+        List<Float> embeddingList = new ArrayList<>();
+        for (float f : embedding) {
+            embeddingList.add(f);
+        }
+        data.put("embedding", embeddingList);
+
+        firestore.collection("users")
+                .document(email)
+                .set(data)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this,
+                            "Data saved, proceeding to login",
+                            Toast.LENGTH_SHORT).show();
+                    startActivity(
+                            new Intent(FaceScanActivity.this,
+                                    EmailLoginActivity.class)
+                    );
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Firestore upload failed", e);
+                    Toast.makeText(this,
+                            "Upload gagal: " + e.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode == CAM_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startCam();
+            } else {
+                Toast.makeText(this,
+                        "Camera permission ditolak",
+                        Toast.LENGTH_SHORT).show();
+            }
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 }
