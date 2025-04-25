@@ -76,9 +76,8 @@ public class EmailLoginActivity extends AppCompatActivity {
                             String storedPassword = document.getString("password");
                             if (storedPassword != null && storedPassword.equals(passwordInput)) {
                                 // Password cocok → lanjut ke FaceLoginActivity
-                                Intent intent = new Intent(EmailLoginActivity.this, FaceLoginActivity.class);
+                                Intent intent = new Intent(EmailLoginActivity.this, FaceScanActivity.class);
                                 intent.putExtra("email", emailInput);
-                                intent.putExtra("password", passwordInput);
                                 startActivity(intent);
                                 finish();
                             } else {

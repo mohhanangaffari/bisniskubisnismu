@@ -12,7 +12,7 @@
     <EditText
         android:id="@+id/emailfield"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:hint="Masukan email"
         android:inputType="textEmailAddress"
         app:layout_constraintTop_toBottomOf="@id/guideline3"
@@ -25,7 +25,7 @@
     <EditText
         android:id="@+id/passwordfield"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:hint="Masukan password"
         android:inputType="textPassword"
         app:layout_constraintTop_toBottomOf="@id/emailfield"
