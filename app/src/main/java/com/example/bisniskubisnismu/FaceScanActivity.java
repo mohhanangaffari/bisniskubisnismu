@@ -83,10 +83,6 @@ public class FaceScanActivity extends AppCompatActivity {
             email    = creds[0];
             name     = creds[1];
             password = creds[2];
-        } else {
-            Toast.makeText(this, "Data register tidak lengkap", Toast.LENGTH_LONG).show();
-            finish();
-            return;
         }
 
         loginButton.setOnClickListener(v -> {
@@ -180,14 +176,26 @@ public class FaceScanActivity extends AppCompatActivity {
                                                 @Override
                                                 public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
                                                     for(DocumentSnapshot documentSnapshot : queryDocumentSnapshots){
-                                                        List<Float> embedding2 = (List<Float>) documentSnapshot.get("embedding");
+                                                        List<Double> embedding2 = (List<Double>) documentSnapshot.get("embedding");
+                                                        float[] embeddingArray = new float[embedding2.size()];
+                                                        for (int i = 0; i < embedding2.size(); i++) {
+                                                            embeddingArray[i] = embedding2.get(i).floatValue();
+                                                        }
                                                         try {
                                                             FaceEmbedding faceEmbedding =
                                                                     new FaceEmbedding(getApplicationContext());
                                                             float[] embedding =
                                                                     faceEmbedding.getFaceEmbedding(faceBmp);
-
-//                                                            if (embedding)
+                                                            float kesamaan = Kesamaan(embedding, embeddingArray);
+                                                            Log.d(TAG, "embedding camera"+embedding[0]);
+                                                            Log.d(TAG, "embedding firestore"+embeddingArray[0]);
+                                                            Log.d(TAG, "embedding kesamaan"+kesamaan);
+                                                            if (kesamaan > 0.4){
+                                                                Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
+                                                                Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
+                                                            }else{
+                                                                Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
+                                                            }
                                                         }catch (Exception e){
 
                                                         }
@@ -197,7 +205,7 @@ public class FaceScanActivity extends AppCompatActivity {
                                             }).addOnFailureListener(new OnFailureListener() {
                                                 @Override
                                                 public void onFailure(@NonNull Exception e) {
-                                                    Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
+                                                    Toast.makeText(FaceScanActivity.this, "error"+e.getMessage(), Toast.LENGTH_SHORT).show();
                                                 }
                                             });
                                 }
@@ -298,4 +306,17 @@ public class FaceScanActivity extends AppCompatActivity {
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
+
+    private float Kesamaan(float[] vec1, float[] vec2) {
+        float dot = 0f;
+        float normA = 0f;
+        float normB = 0f;
+        for (int i = 0; i < vec1.length; i++) {
+            dot += vec1[i] * vec2[i];
+            normA += vec1[i] * vec1[i];
+            normB += vec2[i] * vec2[i];
+        }
+        return dot / ((float)(Math.sqrt(normA) * Math.sqrt(normB)) + 1e-10f);
+    }
+
 }
