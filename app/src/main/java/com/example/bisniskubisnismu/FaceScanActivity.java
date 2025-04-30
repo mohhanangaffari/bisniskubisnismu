@@ -190,7 +190,7 @@ public class FaceScanActivity extends AppCompatActivity {
                                                             Log.d(TAG, "embedding camera"+embedding[0]);
                                                             Log.d(TAG, "embedding firestore"+embeddingArray[0]);
                                                             Log.d(TAG, "embedding kesamaan"+kesamaan);
-                                                            if (kesamaan > 400){
+                                                            if (kesamaan > 370){
                                                                 Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
                                                                 Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
                                                             }else{
@@ -322,7 +322,7 @@ public class FaceScanActivity extends AppCompatActivity {
     private float Kesamaan2(float[] vec1, float[] vec2) {
         int scorekesamaan = 0;
         for(int i=0;i<vec1.length;i++){
-            if(vec1[i] - vec2[i] < 1){
+            if(Math.abs(vec1[i] - vec2[i]) < 0.05){
                 scorekesamaan ++;
         }
         }
