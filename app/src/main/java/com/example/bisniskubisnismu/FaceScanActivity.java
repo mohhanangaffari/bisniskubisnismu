@@ -192,7 +192,7 @@ public class FaceScanActivity extends AppCompatActivity {
                                                             Log.d(TAG, "embedding camera"+embedding[0]);
                                                             Log.d(TAG, "embedding firestore"+embeddingArray[0]);
                                                             Log.d(TAG, "embedding kesamaan"+kesamaan);
-                                                            if (kesamaan > 370){
+                                                            if (kesamaan > 470){
                                                                 Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
                                                                 Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
                                                             }else{
