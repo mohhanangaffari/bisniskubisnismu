@@ -163,6 +163,7 @@ public class FaceScanActivity extends AppCompatActivity {
                                                     faceEmbedding.getFaceEmbedding(faceBmp);
 
                                             // Upload ke Firestore
+                                            embedding = normalize(embedding);
                                             uploadToFirestore(embedding);
 
                                         } catch (IOException e) {
@@ -186,6 +187,7 @@ public class FaceScanActivity extends AppCompatActivity {
                                                                     new FaceEmbedding(getApplicationContext());
                                                             float[] embedding =
                                                                     faceEmbedding.getFaceEmbedding(faceBmp);
+                                                            embedding = normalize(embedding);
                                                             float kesamaan = Kesamaan2(embedding, embeddingArray);
                                                             Log.d(TAG, "embedding camera"+embedding[0]);
                                                             Log.d(TAG, "embedding firestore"+embeddingArray[0]);
@@ -328,5 +330,18 @@ public class FaceScanActivity extends AppCompatActivity {
         }
         return scorekesamaan;
     }
+
+    private float[] normalize(float[] embedding) {
+        float norm = 0f;
+        for (float v : embedding) norm += v * v;
+        norm = (float) Math.sqrt(norm);
+
+        float[] normalized = new float[embedding.length];
+        for (int i = 0; i < embedding.length; i++) {
+            normalized[i] = embedding[i] / (norm + 1e-10f); // + small value to prevent division by 0
+        }
+        return normalized;
+    }
+
 
 }
