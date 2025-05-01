@@ -191,7 +191,7 @@ public class FaceScanActivity extends AppCompatActivity {
 
 
                                             // Upload ke Firestore
-                                            if(faceDetectednum==3) {
+                                            if(faceDetectednum==10) {
 
                                                 uploadToFirestore(embeddinglist);
                                             }
@@ -235,13 +235,13 @@ public class FaceScanActivity extends AppCompatActivity {
                                                                             if(kesamaan > 470){scorekesamaan+=1;}
 
 
-                                                                        if(kesamaan > 470){scorekesamaan+=1;}
+                                                                        if(kesamaan > 490){scorekesamaan+=1;}
 
 
 
 
                                                             }
-                                                            if (scorekesamaan >= 2){
+                                                            if (scorekesamaan >= 8){
                                                                 Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
                                                                 Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
                                                             }else{
@@ -386,7 +386,7 @@ public class FaceScanActivity extends AppCompatActivity {
     private float Kesamaan2(float[] vec1, float[] vec2) {
         int scorekesamaan = 0;
         for(int i=0;i<vec1.length;i++){
-            if(Math.abs(vec1[i] - vec2[i]) < 0.05){
+            if(Math.abs(vec1[i] - vec2[i]) < 0.025){
                 scorekesamaan ++;
         }
         }
