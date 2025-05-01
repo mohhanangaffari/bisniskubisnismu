@@ -1,7 +1,9 @@
 package com.example.bisniskubisnismu;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
@@ -38,10 +40,15 @@ import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
+import org.tensorflow.lite.Interpreter;
+
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,11 +66,26 @@ public class FaceScanActivity extends AppCompatActivity {
     private ProcessCameraProvider cameraProvider;
     private ExecutorService cameraExecutor;
     private boolean faceDetectedOnce = false;
+    private int faceDetectednum = 0;
+    private int scorekesamaan = 0;
 
     private String email, name, password;
     private FirebaseFirestore firestore;
     public String[] creds;
     public String email2;
+
+    private List<float[]> embeddinglist;
+
+
+
+    private MappedByteBuffer loadModelFile(Context context, String modelName) throws IOException {
+        AssetFileDescriptor fileDescriptor = context.getAssets().openFd(modelName);
+        FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
+        FileChannel fileChannel = inputStream.getChannel();
+        long startOffset = fileDescriptor.getStartOffset();
+        long declaredLength = fileDescriptor.getDeclaredLength();
+        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +101,8 @@ public class FaceScanActivity extends AppCompatActivity {
         // Ambil data dari Intent sebelumnya
         creds = getIntent().getStringArrayExtra("credentialregister");
         email2 = getIntent().getStringExtra("email");
+
+        embeddinglist = new ArrayList<>();
         if (creds != null && creds.length >= 3) {
             email    = creds[0];
             name     = creds[1];
@@ -151,6 +175,7 @@ public class FaceScanActivity extends AppCompatActivity {
                         .addOnSuccessListener(faces -> {
                             if (!faces.isEmpty()) {
                                 faceDetectedOnce = true;
+                                faceDetectednum+=1;
                                 Face face = faces.get(0);
                                 Bitmap faceBmp = cropFace(mediaImage, face.getBoundingBox(),
                                         imageProxy.getImageInfo().getRotationDegrees());
@@ -161,10 +186,16 @@ public class FaceScanActivity extends AppCompatActivity {
                                                     new FaceEmbedding(getApplicationContext());
                                             float[] embedding =
                                                     faceEmbedding.getFaceEmbedding(faceBmp);
+                                            embedding = normalize(embedding);
+                                            embeddinglist.add(embedding);
+
 
                                             // Upload ke Firestore
-                                            embedding = normalize(embedding);
-                                            uploadToFirestore(embedding);
+                                            if(faceDetectednum==3) {
+
+                                                uploadToFirestore(embeddinglist);
+                                            }
+                                            faceDetectedOnce=false;
 
                                         } catch (IOException e) {
                                             Log.e(TAG, "Embedding error", e);
@@ -177,22 +208,40 @@ public class FaceScanActivity extends AppCompatActivity {
                                                 @Override
                                                 public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
                                                     for(DocumentSnapshot documentSnapshot : queryDocumentSnapshots){
-                                                        List<Double> embedding2 = (List<Double>) documentSnapshot.get("embedding");
-                                                        float[] embeddingArray = new float[embedding2.size()];
-                                                        for (int i = 0; i < embedding2.size(); i++) {
-                                                            embeddingArray[i] = embedding2.get(i).floatValue();
-                                                        }
+//                                                        List<List<Double>> embeddinglist = (List<List<Double>>) documentSnapshot.get("embedding");
+                                                        Map<String, Object> rawEmbeddings = (Map<String, Object>) documentSnapshot.get("embedding");
+
+
                                                         try {
                                                             FaceEmbedding faceEmbedding =
                                                                     new FaceEmbedding(getApplicationContext());
                                                             float[] embedding =
                                                                     faceEmbedding.getFaceEmbedding(faceBmp);
                                                             embedding = normalize(embedding);
-                                                            float kesamaan = Kesamaan2(embedding, embeddingArray);
-                                                            Log.d(TAG, "embedding camera"+embedding[0]);
-                                                            Log.d(TAG, "embedding firestore"+embeddingArray[0]);
-                                                            Log.d(TAG, "embedding kesamaan"+kesamaan);
-                                                            if (kesamaan > 470){
+
+                                                            int scorekesamaan = 0;
+
+                                                            for(Map.Entry<String, Object> entro : rawEmbeddings.entrySet()){
+                                                               List<Double> rawEmbedding2 = (List<Double>) entro.getValue();
+                                                                    float[] embeddingArray = new float[512];
+                                                                            for (int i = 0; i < 512; i++) {
+                                                                                embeddingArray[i] = rawEmbedding2.get(i).floatValue();
+                                                                            }
+                                                                            embeddingArray = normalize(embeddingArray);
+                                                                            float kesamaan = Kesamaan2(embedding, embeddingArray);
+                                                                            Log.d(TAG, "embedding camera"+embedding[0]);
+                                                                            Log.d(TAG, "embedding firestore"+embeddingArray[0]);
+                                                                            Log.d(TAG, "embedding kesamaan"+kesamaan);
+                                                                            if(kesamaan > 470){scorekesamaan+=1;}
+
+
+                                                                        if(kesamaan > 470){scorekesamaan+=1;}
+
+
+
+
+                                                            }
+                                                            if (scorekesamaan >= 2){
                                                                 Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
                                                                 Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
                                                             }else{
@@ -258,18 +307,31 @@ public class FaceScanActivity extends AppCompatActivity {
         }
     }
 
-    private void uploadToFirestore(float[] embedding) {
+    private void uploadToFirestore(List<float[]> embedding) {
+//        List<List<Double>> rapihlist = new ArrayList<>();
+        Map<String, Object> listembbeding = new HashMap<>();
+        int listnum = 0;
+        for(float[] f : embedding){
+            listnum +=1;
+            List<Double> embedding2 = new ArrayList<>();
+            for (float v : f) {
+                embedding2.add((double) v);
+            }
+            listembbeding.put("list"+listnum,embedding2);
+        }
+
+
         Map<String, Object> data = new HashMap<>();
         data.put("email", email);
         data.put("name", name);
         data.put("password", password);
 
         // Konversi float[] ke List<Float>
-        List<Float> embeddingList = new ArrayList<>();
-        for (float f : embedding) {
-            embeddingList.add(f);
-        }
-        data.put("embedding", embeddingList);
+//        List<Float> embeddingList = new ArrayList<>();
+//        for (float f : embedding) {
+//            embeddingList.add(f);
+//        }
+        data.put("embedding", listembbeding);
 
         firestore.collection("users")
                 .document(email)

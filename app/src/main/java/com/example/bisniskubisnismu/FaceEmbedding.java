@@ -17,7 +17,7 @@ import java.nio.channels.FileChannel;
 
 public class FaceEmbedding {
 
-    private static final String MODEL_PATH = "facenet.tflite"; // Ganti sesuai dengan nama model Anda
+    private static final String MODEL_PATH = "facenet.tflite";
     private static final int INPUT_SIZE = 160;
     private static final int EMBEDDING_SIZE = 512;
 
