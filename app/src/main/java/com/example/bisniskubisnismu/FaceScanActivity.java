@@ -144,6 +144,13 @@ public class FaceScanActivity extends AppCompatActivity {
         }, ContextCompat.getMainExecutor(this));
     }
 
+    private FaceDetectorOptions options = new FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+            .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
+            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
+            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+            .build();
+
     private void setupAnalyzer() {
         cameraProvider.unbindAll();
 
@@ -166,99 +173,106 @@ public class FaceScanActivity extends AppCompatActivity {
                         mediaImage,
                         imageProxy.getImageInfo().getRotationDegrees()
                 );
-                FaceDetectorOptions options = new FaceDetectorOptions.Builder()
-                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                        .build();
+//                FaceDetectorOptions options = new FaceDetectorOptions.Builder()
+//                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+//                        .build();
                 FaceDetector detector = FaceDetection.getClient(options);
 
                 detector.process(image)
                         .addOnSuccessListener(faces -> {
                             if (!faces.isEmpty()) {
-                                faceDetectedOnce = true;
-                                faceDetectednum+=1;
                                 Face face = faces.get(0);
-                                Bitmap faceBmp = cropFace(mediaImage, face.getBoundingBox(),
-                                        imageProxy.getImageInfo().getRotationDegrees());
-                                if (creds != null){
-                                    if (faceBmp != null) {
-                                        try {
-                                            FaceEmbedding faceEmbedding =
-                                                    new FaceEmbedding(getApplicationContext());
-                                            float[] embedding =
-                                                    faceEmbedding.getFaceEmbedding(faceBmp);
-                                            embedding = normalize(embedding);
-                                            embeddinglist.add(embedding);
+                                if (isFaceValid(face)) {
+                                    faceDetectedOnce = true;
+                                    faceDetectednum += 1;
+
+                                    Bitmap faceBmp = cropFace(mediaImage, face.getBoundingBox(),
+                                            imageProxy.getImageInfo().getRotationDegrees());
+                                    if (creds != null) {
+                                        if (faceBmp != null) {
+                                            try {
+                                                FaceEmbedding faceEmbedding =
+                                                        new FaceEmbedding(getApplicationContext());
+                                                float[] embedding =
+                                                        faceEmbedding.getFaceEmbedding(faceBmp);
+                                                embedding = normalize(embedding);
+                                                embeddinglist.add(embedding);
 
 
-                                            // Upload ke Firestore
-                                            if(faceDetectednum==10) {
+                                                // Upload ke Firestore
+                                                if (faceDetectednum == 10) {
 
-                                                uploadToFirestore(embeddinglist);
+                                                    uploadToFirestore(embeddinglist);
+                                                }
+                                                faceDetectedOnce = false;
+
+                                            } catch (IOException e) {
+                                                Log.e(TAG, "Embedding error", e);
                                             }
-                                            faceDetectedOnce=false;
-
-                                        } catch (IOException e) {
-                                            Log.e(TAG, "Embedding error", e);
                                         }
+                                    } else {
+                                        FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
+                                        firebaseFirestore.collection("users").whereEqualTo("email", email2).get()
+                                                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                                                    @Override
+                                                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                                                        for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
+    //                                                        List<List<Double>> embeddinglist = (List<List<Double>>) documentSnapshot.get("embedding");
+                                                            Map<String, Object> rawEmbeddings = (Map<String, Object>) documentSnapshot.get("embedding");
+
+
+                                                            try {
+                                                                FaceEmbedding faceEmbedding =
+                                                                        new FaceEmbedding(getApplicationContext());
+                                                                float[] embedding =
+                                                                        faceEmbedding.getFaceEmbedding(faceBmp);
+                                                                embedding = normalize(embedding);
+
+                                                                int scorekesamaan = 0;
+
+                                                                for (Map.Entry<String, Object> entro : rawEmbeddings.entrySet()) {
+                                                                    List<Double> rawEmbedding2 = (List<Double>) entro.getValue();
+                                                                    float[] embeddingArray = new float[512];
+                                                                    for (int i = 0; i < 512; i++) {
+                                                                        embeddingArray[i] = rawEmbedding2.get(i).floatValue();
+                                                                    }
+                                                                    embeddingArray = normalize(embeddingArray);
+                                                                    float kesamaan = Kesamaan2(embedding, embeddingArray);
+                                                                    Log.d(TAG, "embedding camera" + embedding[0]);
+                                                                    Log.d(TAG, "embedding firestore" + embeddingArray[0]);
+                                                                    Log.d(TAG, "embedding kesamaan" + kesamaan);
+                                                                    if (kesamaan > 470) {
+                                                                        scorekesamaan += 1;
+                                                                    }
+
+
+                                                                    if (kesamaan > 490) {
+                                                                        scorekesamaan += 1;
+                                                                    }
+
+
+                                                                }
+                                                                if (scorekesamaan >= 8) {
+                                                                    Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
+                                                                    Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
+                                                                } else {
+                                                                    Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
+                                                                }
+                                                            } catch (Exception e) {
+
+                                                            }
+                                                        }
+
+                                                    }
+                                                }).addOnFailureListener(new OnFailureListener() {
+                                                    @Override
+                                                    public void onFailure(@NonNull Exception e) {
+                                                        Toast.makeText(FaceScanActivity.this, "error" + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                                    }
+                                                });
                                     }
                                 }else{
-                                    FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
-                                    firebaseFirestore.collection("users").whereEqualTo("email",email2).get()
-                                            .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                                @Override
-                                                public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                    for(DocumentSnapshot documentSnapshot : queryDocumentSnapshots){
-//                                                        List<List<Double>> embeddinglist = (List<List<Double>>) documentSnapshot.get("embedding");
-                                                        Map<String, Object> rawEmbeddings = (Map<String, Object>) documentSnapshot.get("embedding");
-
-
-                                                        try {
-                                                            FaceEmbedding faceEmbedding =
-                                                                    new FaceEmbedding(getApplicationContext());
-                                                            float[] embedding =
-                                                                    faceEmbedding.getFaceEmbedding(faceBmp);
-                                                            embedding = normalize(embedding);
-
-                                                            int scorekesamaan = 0;
-
-                                                            for(Map.Entry<String, Object> entro : rawEmbeddings.entrySet()){
-                                                               List<Double> rawEmbedding2 = (List<Double>) entro.getValue();
-                                                                    float[] embeddingArray = new float[512];
-                                                                            for (int i = 0; i < 512; i++) {
-                                                                                embeddingArray[i] = rawEmbedding2.get(i).floatValue();
-                                                                            }
-                                                                            embeddingArray = normalize(embeddingArray);
-                                                                            float kesamaan = Kesamaan2(embedding, embeddingArray);
-                                                                            Log.d(TAG, "embedding camera"+embedding[0]);
-                                                                            Log.d(TAG, "embedding firestore"+embeddingArray[0]);
-                                                                            Log.d(TAG, "embedding kesamaan"+kesamaan);
-                                                                            if(kesamaan > 470){scorekesamaan+=1;}
-
-
-                                                                        if(kesamaan > 490){scorekesamaan+=1;}
-
-
-
-
-                                                            }
-                                                            if (scorekesamaan >= 8){
-                                                                Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
-                                                                Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
-                                                            }else{
-                                                                Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
-                                                            }
-                                                        }catch (Exception e){
-
-                                                        }
-                                                        }
-
-                                                }
-                                            }).addOnFailureListener(new OnFailureListener() {
-                                                @Override
-                                                public void onFailure(@NonNull Exception e) {
-                                                    Toast.makeText(FaceScanActivity.this, "error"+e.getMessage(), Toast.LENGTH_SHORT).show();
-                                                }
-                                            });
+                                    Toast.makeText(FaceScanActivity.this, "face not detected or not centered", Toast.LENGTH_SHORT).show();
                                 }
 
 
@@ -272,6 +286,23 @@ public class FaceScanActivity extends AppCompatActivity {
 
         CameraSelector selector = CameraSelector.DEFAULT_FRONT_CAMERA;
         cameraProvider.bindToLifecycle(this, selector, preview, analysis);
+    }
+
+
+
+    FaceDetector detector = FaceDetection.getClient(options);
+
+    private boolean isFaceValid(Face face) {
+        Rect bounds = face.getBoundingBox();
+
+        int faceWidth = bounds.width();
+        int faceHeight = bounds.height();
+
+        boolean isCentered = Math.abs(face.getHeadEulerAngleY()) < 15;
+        boolean isStraight = Math.abs(face.getHeadEulerAngleZ()) < 10;
+        boolean isBigEnough = faceWidth > 200 && faceHeight > 200;
+
+        return isCentered && isStraight && isBigEnough;
     }
 
     private Bitmap cropFace(Image mediaImage, Rect box, int rotation) {
