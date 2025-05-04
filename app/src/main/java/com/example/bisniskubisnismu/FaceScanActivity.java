@@ -241,7 +241,7 @@ public class FaceScanActivity extends AppCompatActivity {
                                                                     Log.d(TAG, "embedding camera" + embedding[0]);
                                                                     Log.d(TAG, "embedding firestore" + embeddingArray[0]);
                                                                     Log.d(TAG, "embedding kesamaan" + kesamaan);
-                                                                    if (kesamaan > 470) {
+                                                                    if (kesamaan > 490) {
                                                                         scorekesamaan += 1;
                                                                     }
 
@@ -417,7 +417,7 @@ public class FaceScanActivity extends AppCompatActivity {
     private float Kesamaan2(float[] vec1, float[] vec2) {
         int scorekesamaan = 0;
         for(int i=0;i<vec1.length;i++){
-            if(Math.abs(vec1[i] - vec2[i]) < 0.025){
+            if(Math.abs(vec1[i] - vec2[i]) < 0.005){
                 scorekesamaan ++;
         }
         }
