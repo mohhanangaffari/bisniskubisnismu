@@ -9,9 +9,11 @@ import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Bundle;
+import android.os.Debug;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
@@ -75,6 +77,8 @@ public class FaceScanActivity extends AppCompatActivity {
     public String email2;
 
     private List<float[]> embeddinglist;
+    private FaceOverlay faceOverlay;
+    private RectF rectF;
 
 
 
@@ -97,6 +101,8 @@ public class FaceScanActivity extends AppCompatActivity {
         loginButton    = findViewById(R.id.loginbutton);
         cameraExecutor = Executors.newSingleThreadExecutor();
         firestore      = FirebaseFirestore.getInstance();
+        faceOverlay    = findViewById(R.id.faceOverlay);
+        rectF          = faceOverlay.getFaceBounds();
 
         // Ambil data dari Intent sebelumnya
         creds = getIntent().getStringArrayExtra("credentialregister");
@@ -182,8 +188,8 @@ public class FaceScanActivity extends AppCompatActivity {
                         .addOnSuccessListener(faces -> {
                             if (!faces.isEmpty()) {
                                 Face face = faces.get(0);
-                                if (isFaceValid(face)) {
-                                    faceDetectedOnce = true;
+                                if (isFaceInsidebox(face,rectF)) {
+                                    faceDetectedOnce = false;
                                     faceDetectednum += 1;
 
                                     Bitmap faceBmp = cropFace(mediaImage, face.getBoundingBox(),
@@ -248,12 +254,12 @@ public class FaceScanActivity extends AppCompatActivity {
 
 
                                                                 }
-                                                                if (scorekesamaan >= 8) {
-                                                                    Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
-                                                                    Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
-                                                                } else {
-                                                                    Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
-                                                                }
+//                                                                if (scorekesamaan >= 8) {
+//                                                                    Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
+//                                                                    Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
+//                                                                } else {
+//                                                                    Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
+//                                                                }
                                                             } catch (Exception e) {
 
                                                             }
@@ -285,9 +291,6 @@ public class FaceScanActivity extends AppCompatActivity {
     }
 
 
-
-    FaceDetector detector = FaceDetection.getClient(options);
-
     private boolean isFaceValid(Face face) {
         Rect bounds = face.getBoundingBox();
 
@@ -299,6 +302,25 @@ public class FaceScanActivity extends AppCompatActivity {
         boolean isBigEnough = faceWidth > 200 && faceHeight > 200;
 
         return isCentered && isStraight && isBigEnough;
+    }
+
+    private boolean isFaceInsidebox(Face face,RectF guidline){
+        Rect bounds = face.getBoundingBox();
+        RectF facerect = new RectF(bounds);
+        Log.d(TAG, "Face Rect " + facerect.bottom +" | " + facerect.top);
+        Log.d(TAG, "Face guidline " + guidline.bottom +" | " + guidline.top);
+
+//        return guidline.contains(facerect)&&
+//                facerect.width() > guidline.width()  &&
+//                facerect.width() <= guidline.width()*0.8;
+//        return guidline.contains(facerect);
+//                return
+//                facerect.width() > guidline.width()  &&
+//                facerect.width() <= guidline.width()*0.8;
+//                return
+//                facerect.width() < guidline.width()*0.4 && facerect.width() > guidline.width()*0.25
+//                        && facerect.height() < guidline.height()*0.25 && facerect.height() > guidline.height()*0.15;
+        return facerect.top > guidline.top*0.5 && facerect.bottom < guidline.bottom*0.37 ;
     }
 
     private Bitmap cropFace(Image mediaImage, Rect box, int rotation) {
