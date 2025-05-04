@@ -241,12 +241,8 @@ public class FaceScanActivity extends AppCompatActivity {
                                                                     Log.d(TAG, "embedding camera" + embedding[0]);
                                                                     Log.d(TAG, "embedding firestore" + embeddingArray[0]);
                                                                     Log.d(TAG, "embedding kesamaan" + kesamaan);
-                                                                    if (kesamaan > 490) {
-                                                                        scorekesamaan += 1;
-                                                                    }
 
-
-                                                                    if (kesamaan > 490) {
+                                                                    if (kesamaan > 190) {
                                                                         scorekesamaan += 1;
                                                                     }
 
