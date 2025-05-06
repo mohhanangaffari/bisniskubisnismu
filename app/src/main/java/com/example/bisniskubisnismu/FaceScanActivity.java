@@ -16,6 +16,7 @@ import android.os.Bundle;
 import android.os.Debug;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -65,6 +66,7 @@ public class FaceScanActivity extends AppCompatActivity {
 
     private PreviewView previewView;
     private Button loginButton;
+    private TextView textwajah;
     private ProcessCameraProvider cameraProvider;
     private ExecutorService cameraExecutor;
     private boolean faceDetectedOnce = false;
@@ -103,6 +105,7 @@ public class FaceScanActivity extends AppCompatActivity {
         firestore      = FirebaseFirestore.getInstance();
         faceOverlay    = findViewById(R.id.faceOverlay);
         rectF          = faceOverlay.getFaceBounds();
+        textwajah      = findViewById(R.id.infowajah);
 
         // Ambil data dari Intent sebelumnya
         creds = getIntent().getStringArrayExtra("credentialregister");
@@ -189,7 +192,7 @@ public class FaceScanActivity extends AppCompatActivity {
                             if (!faces.isEmpty()) {
                                 Face face = faces.get(0);
                                 if (isFaceInsidebox(face,rectF)) {
-                                    faceDetectedOnce = false;
+                                    faceDetectedOnce = true;
                                     faceDetectednum += 1;
 
                                     Bitmap faceBmp = cropFace(mediaImage, face.getBoundingBox(),
@@ -248,18 +251,24 @@ public class FaceScanActivity extends AppCompatActivity {
                                                                     Log.d(TAG, "embedding firestore" + embeddingArray[0]);
                                                                     Log.d(TAG, "embedding kesamaan" + kesamaan);
 
-                                                                    if (kesamaan > 190) {
+                                                                    if (kesamaan > 350) {
                                                                         scorekesamaan += 1;
+
+
                                                                     }
+                                                                    Log.d(TAG, "score kesamaan" + scorekesamaan);
 
 
                                                                 }
-//                                                                if (scorekesamaan >= 8) {
-//                                                                    Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
-//                                                                    Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
-//                                                                } else {
-//                                                                    Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
-//                                                                }
+                                                                if (scorekesamaan >= 7) {
+                                                                    Toast.makeText(FaceScanActivity.this, "sudah ada bang", Toast.LENGTH_SHORT).show();
+                                                                    Intent intent = new Intent(FaceScanActivity.this, Dashboard.class);
+                                                                    Log.d(TAG, "sukses");
+                                                                } else {
+                                                                    Toast.makeText(FaceScanActivity.this, "gk ketemu bang", Toast.LENGTH_SHORT).show();
+                                                                    Log.d(TAG, "gagal");
+                                                                    faceDetectedOnce = false;
+                                                                }
                                                             } catch (Exception e) {
 
                                                             }
@@ -273,11 +282,7 @@ public class FaceScanActivity extends AppCompatActivity {
                                                     }
                                                 });
                                     }
-                                }else{
-                                    Toast.makeText(FaceScanActivity.this, "face not detected or not centered", Toast.LENGTH_SHORT).show();
                                 }
-
-
                             }
                         })
                         .addOnCompleteListener(task -> imageProxy.close());
@@ -307,20 +312,22 @@ public class FaceScanActivity extends AppCompatActivity {
     private boolean isFaceInsidebox(Face face,RectF guidline){
         Rect bounds = face.getBoundingBox();
         RectF facerect = new RectF(bounds);
-        Log.d(TAG, "Face Rect " + facerect.bottom +" | " + facerect.top);
-        Log.d(TAG, "Face guidline " + guidline.bottom +" | " + guidline.top);
+        Log.d(TAG, "Face Rect " + facerect.top +" | " + facerect.bottom + facerect.left +" | " + facerect.right);
+        Log.d(TAG, "Face guidline " + guidline.top +" | " + guidline.bottom+ guidline.left +" | " + guidline.right);
 
-//        return guidline.contains(facerect)&&
-//                facerect.width() > guidline.width()  &&
-//                facerect.width() <= guidline.width()*0.8;
-//        return guidline.contains(facerect);
-//                return
-//                facerect.width() > guidline.width()  &&
-//                facerect.width() <= guidline.width()*0.8;
-//                return
-//                facerect.width() < guidline.width()*0.4 && facerect.width() > guidline.width()*0.25
-//                        && facerect.height() < guidline.height()*0.25 && facerect.height() > guidline.height()*0.15;
-        return facerect.top > guidline.top*0.5 && facerect.bottom < guidline.bottom*0.37 ;
+        if(!(facerect.top > guidline.top*0.47) ){
+        textwajah.setText("wajah kurang bawah");
+        }else if(!(facerect.bottom < guidline.bottom*0.37)){
+            textwajah.setText("wajah kurang atas");
+        } else if (!(facerect.left < guidline.left*0.6)) {
+            textwajah.setText("wajah kurang kanan");
+        } else if (!(facerect.right > guidline.right*0.42)) {
+            textwajah.setText("wajah kurang kiri");
+        }else{
+            textwajah.setText("wajah sudah tepat");
+        }
+
+        return facerect.top > guidline.top*0.47 && facerect.bottom < guidline.bottom*0.37 && facerect.left < guidline.left*0.6 && facerect.right > guidline.right*0.42;
     }
 
     private Bitmap cropFace(Image mediaImage, Rect box, int rotation) {
