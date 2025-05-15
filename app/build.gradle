@@ -50,6 +50,7 @@ dependencies {
     implementation libs.biometric
     implementation libs.navigation.fragment
     implementation libs.navigation.ui
+    implementation libs.firebase.auth
     apply plugin: 'com.google.gms.google-services'
     implementation 'com.google.firebase:firebase-firestore:24.9.0'
     implementation 'de.hdodenhof:circleimageview:3.1.0'

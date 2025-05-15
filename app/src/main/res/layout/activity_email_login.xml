@@ -66,7 +66,7 @@
                 app:layout_constraintBaseline_toBaselineOf="parent" />
 
             <TextView
-                android:id="@+id/registerpage"
+                android:id="@+id/registerpagetext"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Sign Up"
