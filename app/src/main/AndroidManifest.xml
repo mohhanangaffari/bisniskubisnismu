@@ -28,7 +28,7 @@
             android:exported="true" />
         <activity
             android:name=".Dashboard"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.Bisniskubisnismu" /> <!-- <activity -->
         <!-- android:name=".ProfileActivity" -->
         <!-- android:exported="false" /> -->
@@ -47,7 +47,6 @@
             android:exported="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -21,9 +22,11 @@ import java.util.Arrays;
 @ExperimentalGetImage
 public class RegisterActivity extends AppCompatActivity {
     private EditText regemail,regnama,regpassword,regpasswordconf;
+    private TextView loginPage;
     private Button regbutton;
     protected String[] credentialregister;
 
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,6 +38,12 @@ public class RegisterActivity extends AppCompatActivity {
         regpassword = findViewById(R.id.regpassword);
         regpasswordconf = findViewById(R.id.regpasswordconfirm);
         regbutton = findViewById(R.id.regbutton);
+        loginPage = findViewById(R.id.loginpage);
+
+        // Tombol Register (opsional: navigasi ke RegisterActivity)
+        loginPage.setOnClickListener(v -> {
+            startActivity(new Intent(RegisterActivity.this, EmailLoginActivity.class));
+        });
 
         regbutton.setOnClickListener(new View.OnClickListener() {
             @Override

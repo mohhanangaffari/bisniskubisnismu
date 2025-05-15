@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -14,9 +15,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 public class EmailLoginActivity extends AppCompatActivity {
@@ -25,11 +23,11 @@ public class EmailLoginActivity extends AppCompatActivity {
     private EditText emailField;
     private EditText passwordField;
     private Button loginButton;
-    private Button registerButton;
+    private TextView registerPage;
 
     private FirebaseFirestore firestore;
 
-    @SuppressLint("UnsafeOptInUsageError")
+    @SuppressLint({"UnsafeOptInUsageError", "MissingInflatedId"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -47,13 +45,13 @@ public class EmailLoginActivity extends AppCompatActivity {
         emailField    = findViewById(R.id.emailfield);
         passwordField = findViewById(R.id.passwordfield);
         loginButton   = findViewById(R.id.loginemailbtn);
-        registerButton= findViewById(R.id.registerbtn);
+        registerPage = findViewById(R.id.registerpage);
 
         // Inisialisasi Firestore
         firestore = FirebaseFirestore.getInstance();
 
         // Tombol Register (opsional: navigasi ke RegisterActivity)
-        registerButton.setOnClickListener(v -> {
+        registerPage.setOnClickListener(v -> {
             startActivity(new Intent(EmailLoginActivity.this, RegisterActivity.class));
         });
 

@@ -2,51 +2,32 @@ package com.example.bisniskubisnismu;
 
 import android.os.Bundle;
 
-import com.google.android.material.snackbar.Snackbar;
-
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import android.view.View;
-
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
-
-import com.example.bisniskubisnismu.databinding.ActivityDashboardBinding;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Dashboard extends AppCompatActivity {
 
-    private AppBarConfiguration appBarConfiguration;
-    private ActivityDashboardBinding binding;
+    RecyclerView recyclerView;
+    List<BusinessModel> list;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_dashboard); // Pastikan layout ini berisi RecyclerView dengan id "businessRecycler"
 
-        binding = ActivityDashboardBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        recyclerView = findViewById(R.id.businessRecycler);
+        list = new ArrayList<>();
 
-        setSupportActionBar(binding.toolbar);
+        list.add(new BusinessModel("Budi", "Bisnis Gym, Tanjung Karang", R.drawable.gym, R.drawable.avatar_budi));
+        list.add(new BusinessModel("Joko", "Bisnis Ketoprak, Labuhan Ratu", R.drawable.ketoprak, R.drawable.avatar_joko));
+        list.add(new BusinessModel("Anwar", "Bisnis Elektronik, Teluk Betung", R.drawable.elektronik, R.drawable.avatar_anwar));
 
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_dashboard);
-        appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
-        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
-
-        binding.fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAnchorView(R.id.fab)
-                        .setAction("Action", null).show();
-            }
-        });
-    }
-
-    @Override
-    public boolean onSupportNavigateUp() {
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_dashboard);
-        return NavigationUI.navigateUp(navController, appBarConfiguration)
-                || super.onSupportNavigateUp();
+        BusinessAdapter adapter = new BusinessAdapter(list);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(adapter);
     }
 }
