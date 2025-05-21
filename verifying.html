@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verifying Email...</title>
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1"></script>
+</head>
+<body>
+  <h2 id="status">Verifying your email...</h2>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId');
+    const secret = urlParams.get('secret');
+
+    const client = new Appwrite.Client();
+    client
+      .setEndpoint('https://cloud.appwrite.io/v1') // or your custom endpoint
+      .setProject('682950ce0002287b777a'); // Replace with your project ID
+
+    const account = new Appwrite.Account(client);
+
+    account.updateVerification(userId, secret)
+      .then(() => {
+        document.getElementById('status').textContent = "✅ Email verified successfully!";
+      })
+      .catch(error => {
+        document.getElementById('status').textContent = "❌ Verification failed: " + error.message;
+      });
+  </script>
+</body>
+</html>
